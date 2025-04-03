@@ -58,6 +58,8 @@ function configurer_vpn() {
     ipv6.addr-gen-mode stable-privacy
     
     sudo nmcli connection modify "VPN UFC" ipv4.never-default no
+
+
 }
 
 function routes() {
@@ -98,14 +100,16 @@ function routes() {
 function creer_fichiers_dns() {
 
 
-    # Configuration DNS avec NetworkManager
-    sudo nmcli connection modify "VPN UFC" ipv4.dns "194.57.91.200,194.57.91.201"
+
+    # Ensure the DNS configuration is managed by NetworkManager
+    sudo nmcli connection modify "VPN UFC" ipv4.ignore-auto-dns yes
     sudo nmcli connection modify "VPN UFC" ipv4.dns-search "univ-fcomte.fr"
-    sudo nmcli connection modify "VPN UFC" +ipv4.dns "8.8.8.8,8.8.4.4"
+    sudo nmcli connection modify "VPN UFC" ipv4.dns "194.57.91.200,194.57.91.201,8.8.8.8,8.8.4.4"
 
-
-
-    sudo systemctl restart NetworkManager
+    
+    # Restart the VPN connection to apply DNS changes
+    sudo nmcli connection down "VPN UFC"
+    sudo nmcli connection up "VPN UFC"
   
 }
 
