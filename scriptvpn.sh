@@ -108,10 +108,13 @@ function creer_fichiers_dns() {
     sudo nmcli connection modify "VPN UFC" ipv4.dns-options "trust-ad"
 
 
+    sudo systemctl restart NetworkManager
     
     # Restart the VPN connection to apply DNS changes
     sudo nmcli connection down "VPN UFC"
     sudo nmcli connection up "VPN UFC"
+
+    
   
 }
 
