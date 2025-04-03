@@ -124,6 +124,8 @@ EOF'
 
     echo "Fichiers DNS créés avec succès."
 
+sudo systemctl restart dnsmasq
+
 sudo systemctl restart NetworkManager
   
 }
