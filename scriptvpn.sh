@@ -85,7 +85,7 @@ ROUTES=(
 )
 
 for route in "${ROUTES[@]}"; do
-    nmcli connection modify "$VPN_NAME" +ipv4.routes "$route" || {
+    nmcli connection modify "$VPN_NAME" +ipv4.routes "$ROUTES" || {
         echo "Failed to add route $route to $VPN_NAME"
         exit 1
     }
