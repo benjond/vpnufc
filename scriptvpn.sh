@@ -39,7 +39,7 @@ function installer_paquets() {
 
 function configurer_vpn() {
     # Supprimer toutes les connexions VPN existantes (actives ou non)
-    existing_vpns=$(nmcli connection show | grep vpn | awk '{print $1}')
+    existing_vpns=$(nmcli -t -f NAME connection show | grep vpn)
     for vpn in $existing_vpns; do
         sudo nmcli connection delete "$vpn"
     done
@@ -98,47 +98,16 @@ function routes() {
 }
 
 function creer_fichiers_dns() {
-    echo "Création des fichiers DNS..."
 
-    # Modification du fichier /etc/NetworkManager/NetworkManager.conf
-    sudo sed -i '/^\[main\]/a dns=dnsmasq' /etc/NetworkManager/NetworkManager.conf
 
-    #installation de dnsmasq
-    sudo apt install -y dnsmasq
-    # Création du répertoire dnsmasq.d s'il n'existe pas
-    if [ ! -d /etc/NetworkManager/dnsmasq.d ]; then
-        sudo mkdir -p /etc/NetworkManager/dnsmasq.d
-    fi
+    # Configuration DNS avec NetworkManager
+    sudo nmcli connection modify "VPN UFC" ipv4.dns "194.57.91.200,194.57.91.201"
+    sudo nmcli connection modify "VPN UFC" ipv4.dns-search "univ-fcomte.fr"
+    sudo nmcli connection modify "VPN UFC" +ipv4.dns "8.8.8.8,8.8.4.4"
 
-    # Création du fichier dns-ufc.conf
 
-    # Vérification de l'existence du fichier dns-ufc.conf
-    if [ -f /etc/NetworkManager/dnsmasq.d/dns-ufc.conf ]; then
-        echo "Le fichier dns-ufc.conf existe déjà. Il sera remplacé."
-        sudo rm /etc/NetworkManager/dnsmasq.d/dns-ufc.conf
-    fi
-    sudo bash -c 'cat > /etc/NetworkManager/dnsmasq.d/dns-ufc.conf <<EOF
-server=/univ-fcomte.fr/194.57.91.200
-server=/univ-fcomte.fr/194.57.91.201
-EOF'
 
-    # Vérification de l'existence du fichier 00-use-dns-google.conf
-    if [ -f /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf ]; then
-        echo "Le fichier 00-use-dns-google.conf existe déjà. Il sera remplacé."
-        sudo rm /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf
-    fi
-
-    # Création du fichier 00-use-dns-google.conf
-    sudo bash -c 'cat > /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf <<EOF
-server=8.8.8.8
-server=8.8.4.4
-EOF'
-
-    echo "Fichiers DNS créés avec succès."
-
-sudo systemctl restart dnsmasq
-
-sudo systemctl restart NetworkManager
+    sudo systemctl restart NetworkManager
   
 }
 
