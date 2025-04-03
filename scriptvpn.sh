@@ -14,17 +14,17 @@ choisir_distribution() {
 installer_paquets() {
     case $distro in
         1)
-            sudo apt update -y > /dev/null 2>&1
-            sudo apt install -y network-manager-strongswan libstrongswan-extra-plugins libcharon-extra-plugins > /dev/null 2>&1
+            sudo apt update -y
+            sudo apt install -y network-manager-strongswan libstrongswan-extra-plugins libcharon-extra-plugins
             ;;
         2)
-            sudo dnf install -y strongswan NetworkManager-strongswan > /dev/null 2>&1
+            sudo dnf install -y strongswan NetworkManager-strongswan
             ;;
         3)
-            sudo pacman -S --needed --noconfirm strongswan networkmanager-strongswan > /dev/null 2>&1
+            sudo pacman -S --needed --noconfirm strongswan networkmanager-strongswan
             ;;
         4)
-            sudo zypper install -y strongswan NetworkManager-strongswan > /dev/null 2>&1
+            sudo zypper install -y strongswan NetworkManager-strongswan
             ;;
         *)
             echo "Erreur: distribution inconnue"
