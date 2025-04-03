@@ -104,7 +104,9 @@ function creer_fichiers_dns() {
     # Ensure the DNS configuration is managed by NetworkManager
     sudo nmcli connection modify "VPN UFC" ipv4.ignore-auto-dns yes
     sudo nmcli connection modify "VPN UFC" ipv4.dns-search "univ-fcomte.fr"
-    sudo nmcli connection modify "VPN UFC" ipv4.dns "194.57.91.200,194.57.91.201,8.8.8.8,8.8.4.4"
+    sudo nmcli connection modify "VPN UFC" ipv4.dns "127.0.0.53"
+    sudo nmcli connection modify "VPN UFC" ipv4.dns-options "edns0,trust-ad"
+
 
     
     # Restart the VPN connection to apply DNS changes
