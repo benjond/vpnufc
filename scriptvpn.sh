@@ -50,6 +50,9 @@ function configurer_vpn() {
     ipv6.method auto \
     ipv6.addr-gen-mode stable-privacy
 
+    sudo nmcli connection modify "VPN UFC" ipv4.mtu 1300
+    sudo nmcli connection modify "VPN UFC" ipv4.never-default no
+
 }
 
 
