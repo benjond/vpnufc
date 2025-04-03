@@ -2,7 +2,7 @@
 
 # Ce script permet d'installer et de configuer le vpn Strongswan de l'IUT NFC
 
-choisir_distribution() {
+function choisir_distribution() {
     echo "1) Debian/Ubuntu/Mint"
     echo "2) Fedora"
     echo "3) Arch/Manjaro"
@@ -11,7 +11,7 @@ choisir_distribution() {
     read -p "Choisissez votre distribution: " distro
 }
 
-installer_paquets() {
+function installer_paquets() {
     case $distro in
         1)
             sudo apt update -y
@@ -33,7 +33,7 @@ installer_paquets() {
     esac
 }
 
-configurer_vpn() {
+function configurer_vpn() {
     echo "Veuillez entrer vos identifiants de connexion"
     read -p "Nom d'utilisateur: " username
     read -sp "Mot de passe: " password
@@ -54,7 +54,7 @@ configurer_vpn() {
 
 
 
-routes() {
+function routes() {
 VPN_NAME="VPN UFC"
 
 # Add static routes
@@ -85,10 +85,7 @@ ROUTES=(
 )
 
 for route in "${ROUTES[@]}"; do
-    nmcli connection modify "$VPN_NAME" +ipv4.routes "$ROUTES" || {
-        echo "Failed to add route $route to $VPN_NAME"
-        exit 1
-    }
+    nmcli connection modify "$VPN_NAME" +ipv4.routes "$route"
 done
 }
 
