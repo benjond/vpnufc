@@ -39,7 +39,7 @@ function installer_paquets() {
 
 function configurer_vpn() {
     # Supprimer toutes les connexions VPN existantes (actives ou non)
-    vpn_connections=$(sudo nmcli --terse --fields NAME,TYPE connection show | grep vpn | cut -d: -f1)
+    vpn_connections="$(sudo nmcli --terse --fields NAME,TYPE connection show | grep vpn | cut -d: -f1)"
     for vpn in $vpn_connections; do
         sudo nmcli connection delete "$vpn"
     done
