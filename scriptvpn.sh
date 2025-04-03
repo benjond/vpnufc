@@ -111,10 +111,22 @@ function creer_fichiers_dns() {
     fi
 
     # Création du fichier dns-ufc.conf
+
+    # Vérification de l'existence du fichier dns-ufc.conf
+    if [ -f /etc/NetworkManager/dnsmasq.d/dns-ufc.conf ]; then
+        echo "Le fichier dns-ufc.conf existe déjà. Il sera remplacé."
+        sudo rm /etc/NetworkManager/dnsmasq.d/dns-ufc.conf
+    fi
     sudo bash -c 'cat > /etc/NetworkManager/dnsmasq.d/dns-ufc.conf <<EOF
 server=/univ-fcomte.fr/194.57.91.200
 server=/univ-fcomte.fr/194.57.91.201
 EOF'
+
+    # Vérification de l'existence du fichier 00-use-dns-google.conf
+    if [ -f /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf ]; then
+        echo "Le fichier 00-use-dns-google.conf existe déjà. Il sera remplacé."
+        sudo rm /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf
+    fi
 
     # Création du fichier 00-use-dns-google.conf
     sudo bash -c 'cat > /etc/NetworkManager/dnsmasq.d/00-use-dns-google.conf <<EOF
