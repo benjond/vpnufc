@@ -133,8 +133,9 @@ main() {
     configurer_vpn
     if [ $distro -eq 1 ]; then
         routes
+        creer_fichiers_dns
     fi
-    creer_fichiers_dns
+    
 }
 
 main
