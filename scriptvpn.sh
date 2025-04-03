@@ -129,6 +129,9 @@ sudo systemctl restart NetworkManager
 }
 
 main() {
+    if [ $distro -eq  ]; then
+        exit 1
+    fi
     choisir_distribution
     installer_paquets
     configurer_vpn
