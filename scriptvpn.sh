@@ -39,10 +39,7 @@ function installer_paquets() {
 
 function configurer_vpn() {
     # Supprimer toutes les connexions VPN existantes (actives ou non)
-    existing_vpns=$(nmcli -t -f NAME connection show | grep vpn)
-    for vpn in $existing_vpns; do
-        sudo nmcli connection delete "$vpn"
-    done
+    sudo nmcli --terse --fields NAME,TYPE connection show | grep vpn | cut -d: -f1 | xargs -r sudo nmcli connection delete
     echo "Veuillez entrer vos identifiants de connexion"
     read -p "Nom d'utilisateur: " username
     read -sp "Mot de passe: " password
