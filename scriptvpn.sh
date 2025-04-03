@@ -29,6 +29,7 @@ function installer_paquets() {
             ;;
         5)
             creer_fichiers_dns
+            ;;
         *)
             echo "Erreur: distribution inconnue"
             exit 1
