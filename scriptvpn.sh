@@ -41,7 +41,7 @@ function configurer_vpn() {
     # Supprimer toutes les connexions VPN existantes (actives ou non)
     vpn_connections="$(sudo nmcli --terse --fields NAME,TYPE connection show | grep vpn | cut -d: -f1)"
     for vpn in $vpn_connections; do
-        sudo nmcli connection delete "$vpn"
+        sudo nmcli connection delete "$(echo "$vpn" | xargs)"
     done
     echo "Veuillez entrer vos identifiants de connexion"
     read -p "Nom d'utilisateur: " username
