@@ -71,23 +71,42 @@ function configurer_vpn() {
     CA_DST="/etc/ssl/certs/${CA_NAME}"
 
     # Fedora specific: ensure system CA trust is extracted and create the compatibility symlink
-    if [ "$distro" -eq 2 ]; then
-        echo "Distribution: Fedora — mise à jour du magasin de certificats système et création d'un lien symbolique si nécessaire..."
-        # Extract the system CA trust (idempotent)
-        sudo update-ca-trust extract 2>/dev/null || true
+        if [ "$distro" -eq 2 ]; then
+            echo "Distribution: Fedora — téléchargement et import du certificat CA depuis internet..."
+            CA_URL="http://www.tbs-x509.com/USERTrustRSAAAACertificateServices.crt"
+            ANCHOR_DIR="/etc/pki/ca-trust/source/anchors"
+            ANCHOR_NAME="$(basename "$CA_URL")"
+            ANCHOR_PATH="$ANCHOR_DIR/$ANCHOR_NAME"
 
-        # If the extracted bundle exists, create or update the symlink expected by the script
-        BUNDLE="/etc/pki/tls/certs/ca-bundle.crt"
-        if [ -f "$BUNDLE" ]; then
-            # Create or update the symlink at /etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem
-            if [ -e "$CA_DST" ] || [ -L "$CA_DST" ]; then
-                sudo rm -f "$CA_DST" || true
+            # Télécharger le certificat si absent
+            if [ ! -f "$ANCHOR_PATH" ]; then
+                echo "Téléchargement de $CA_URL vers $ANCHOR_PATH"
+                if command -v curl >/dev/null 2>&1; then
+                    sudo curl -fsSL "$CA_URL" -o "/tmp/$ANCHOR_NAME" || true
+                elif command -v wget >/dev/null 2>&1; then
+                    sudo wget -qO "/tmp/$ANCHOR_NAME" "$CA_URL" || true
+                else
+                    echo "Ni curl ni wget n'est disponible — veuillez installer curl ou wget ou déposer le CRT manuellement." 
+                fi
+                if [ -f "/tmp/$ANCHOR_NAME" ]; then
+                    sudo mkdir -p "$ANCHOR_DIR" || true
+                    sudo mv "/tmp/$ANCHOR_NAME" "$ANCHOR_PATH" || true
+                    sudo chmod 644 "$ANCHOR_PATH" || true
+                    echo "Certificat déplacé vers $ANCHOR_PATH"
+                fi
+            else
+                echo "Anchor existe déjà : $ANCHOR_PATH"
             fi
-            sudo ln -s "$BUNDLE" "$CA_DST" || true
-            sudo chmod 644 "$BUNDLE" || true
-            echo "Lien symbolique créé : $CA_DST -> $BUNDLE"
-        else
-            echo "Attention: $BUNDLE introuvable après update-ca-trust. Vérifiez manuellement le magasin de certificats." 
+
+            # Import into system trust
+            sudo update-ca-trust extract 2>/dev/null || true
+
+            # For compatibility, if NetworkManager expects a PEM under /etc/ssl/certs/, copy the anchor there
+            if [ ! -f "$CA_DST" ] && [ -f "$ANCHOR_PATH" ]; then
+                sudo cp "$ANCHOR_PATH" "$CA_DST" || true
+                sudo chmod 644 "$CA_DST" || true
+                echo "Copie de $ANCHOR_PATH vers $CA_DST pour compatibilité" || true
+            fi
         fi
     fi
 
