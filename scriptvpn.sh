@@ -70,20 +70,26 @@ function configurer_vpn() {
     CA_NAME="USERTrust_RSA_Certification_Authority.pem"
     CA_DST="/etc/ssl/certs/${CA_NAME}"
 
-    # Fedora specific: extract the USERTrust RSA CA directly from the bundle into a PEM file
-    if [ "$distro" -eq 2 ]; then
-        echo "Distribution: Fedora — extraction du certificat CA depuis /etc/pki/tls/certs/ca-bundle.crt..."
-        BUNDLE_PATH="/etc/pki/tls/certs/ca-bundle.crt"
-        if [ -f "$BUNDLE_PATH" ]; then
-            sudo awk '/USERTrust RSA Certification Authority/,/END CERTIFICATE/' "$BUNDLE_PATH" | sudo tee "$CA_DST" >/dev/null || true
-            if [ -s "$CA_DST" ]; then
-                echo "Certificat extrait vers $CA_DST"
-            else
-                echo "Extraction vide — vérifiez que l'entrée existe dans $BUNDLE_PATH et que le motif correspond exactement."
-                sudo rm -f "$CA_DST" 2>/dev/null || true
-            fi
+    # OpenSUSE specific: extract the USERTrust RSA CA directly from the bundle into a PEM file
+    # (le choix du certificat doit être fait uniquement pour OpenSUSE)
+    if [ "$distro" -eq 4 ]; then
+        echo "Distribution: OpenSUSE — vérification du certificat CA sur le système..."
+        if [ -f "$CA_DST" ]; then
+            echo "Le certificat existe déjà en $CA_DST — extraction ignorée."
         else
-            echo "Fichier de bundle introuvable : $BUNDLE_PATH. Impossible d'extraire le certificat." 
+            echo "Certificat absent — tentative d'extraction depuis /etc/pki/tls/certs/ca-bundle.crt..."
+            BUNDLE_PATH="/etc/pki/tls/certs/ca-bundle.crt"
+            if [ -f "$BUNDLE_PATH" ]; then
+                sudo awk '/USERTrust RSA Certification Authority/,/END CERTIFICATE/' "$BUNDLE_PATH" | sudo tee "$CA_DST" >/dev/null || true
+                if [ -s "$CA_DST" ]; then
+                    echo "Certificat extrait vers $CA_DST"
+                else
+                    echo "Extraction vide — vérifiez que l'entrée existe dans $BUNDLE_PATH et que le motif correspond exactement."
+                    sudo rm -f "$CA_DST" 2>/dev/null || true
+                fi
+            else
+                echo "Fichier de bundle introuvable : $BUNDLE_PATH. Impossible d'extraire le certificat." 
+            fi
         fi
     fi
 
@@ -109,8 +115,8 @@ function configurer_vpn() {
                 sudo sed -i '/^\[vpn\]/a certificate='"$CA_DST" "$CONN_FILE"
                 sudo chmod 600 "$CONN_FILE"
                 sudo nmcli connection reload || true
-                # Sur Fedora on restart NetworkManager to be safe
-                if [ "$distro" -eq 2 ]; then
+                # Redémarrer NetworkManager si la modification a été effectuée par la logique spécifique (ici OpenSUSE)
+                if [ "$distro" -eq 4 ]; then
                     sudo systemctl restart NetworkManager || true
                 fi
                 echo "Certificat CA ajouté avec succès : $CA_DST"
