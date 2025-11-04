@@ -70,15 +70,20 @@ function configurer_vpn() {
     CA_NAME="USERTrust_RSA_Certification_Authority.pem"
     CA_DST="/etc/ssl/certs/${CA_NAME}"
 
-    # Fedora specific: extract the USERTrust RSA CA directly into a PEM file
+    # Fedora specific: extract the USERTrust RSA CA directly from the bundle into a PEM file
     if [ "$distro" -eq 2 ]; then
-        echo "Distribution: Fedora — extraction du certificat CA via 'trust'..."
-        # Use 'trust' to extract the specific CA into the expected path
-        sudo trust extract --format=pem --filter "USERTrust RSA Certification Authority" "$CA_DST" 2>/dev/null || true
-        if [ -f "$CA_DST" ]; then
-            echo "Certificat extrait vers $CA_DST"
+        echo "Distribution: Fedora — extraction du certificat CA depuis /etc/pki/tls/certs/ca-bundle.crt..."
+        BUNDLE_PATH="/etc/pki/tls/certs/ca-bundle.crt"
+        if [ -f "$BUNDLE_PATH" ]; then
+            sudo awk '/USERTrust RSA Certification Authority/,/END CERTIFICATE/' "$BUNDLE_PATH" | sudo tee "$CA_DST" >/dev/null || true
+            if [ -s "$CA_DST" ]; then
+                echo "Certificat extrait vers $CA_DST"
+            else
+                echo "Extraction vide — vérifiez que l'entrée existe dans $BUNDLE_PATH et que le motif correspond exactement."
+                sudo rm -f "$CA_DST" 2>/dev/null || true
+            fi
         else
-            echo "Échec de l'extraction du certificat avec 'trust'. Vérifiez que le CA existe dans le magasin système." 
+            echo "Fichier de bundle introuvable : $BUNDLE_PATH. Impossible d'extraire le certificat." 
         fi
     fi
 
