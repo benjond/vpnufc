@@ -70,44 +70,17 @@ function configurer_vpn() {
     CA_NAME="USERTrust_RSA_Certification_Authority.pem"
     CA_DST="/etc/ssl/certs/${CA_NAME}"
 
-    # Fedora specific: ensure system CA trust is extracted and create the compatibility symlink
-        if [ "$distro" -eq 2 ]; then
-            echo "Distribution: Fedora — téléchargement et import du certificat CA depuis crt.sh..."
-            CA_URL="https://crt.sh/?d=4792"
-            ANCHOR_DIR="/etc/pki/ca-trust/source/anchors"
-            ANCHOR_NAME="$CA_NAME"
-            ANCHOR_PATH="$ANCHOR_DIR/$ANCHOR_NAME"
-
-            # Télécharger le certificat si absent
-            if [ ! -f "$ANCHOR_PATH" ]; then
-                echo "Téléchargement de $CA_URL vers /tmp/$ANCHOR_NAME"
-                if command -v wget >/dev/null 2>&1; then
-                    sudo wget -qO "/tmp/$ANCHOR_NAME" "$CA_URL" || true
-                elif command -v curl >/dev/null 2>&1; then
-                    sudo curl -fsSL "$CA_URL" -o "/tmp/$ANCHOR_NAME" || true
-                else
-                    echo "Ni wget ni curl n'est disponible — veuillez installer wget ou curl ou déposer le CRT manuellement." 
-                fi
-                if [ -f "/tmp/$ANCHOR_NAME" ]; then
-                    sudo mkdir -p "$ANCHOR_DIR" || true
-                    sudo mv "/tmp/$ANCHOR_NAME" "$ANCHOR_PATH" || true
-                    sudo chmod 644 "$ANCHOR_PATH" || true
-                    echo "Certificat déplacé vers $ANCHOR_PATH"
-                fi
-            else
-                echo "Anchor existe déjà : $ANCHOR_PATH"
-            fi
-
-            # Import into system trust
-            sudo update-ca-trust extract 2>/dev/null || true
-
-            # For compatibility, if NetworkManager expects a PEM under /etc/ssl/certs/, copy the anchor there
-            if [ ! -f "$CA_DST" ] && [ -f "$ANCHOR_PATH" ]; then
-                sudo cp "$ANCHOR_PATH" "$CA_DST" || true
-                sudo chmod 644 "$CA_DST" || true
-                echo "Copie de $ANCHOR_PATH vers $CA_DST pour compatibilité" || true
-            fi
+    # Fedora specific: extract the USERTrust RSA CA directly into a PEM file
+    if [ "$distro" -eq 2 ]; then
+        echo "Distribution: Fedora — extraction du certificat CA via 'trust'..."
+        # Use 'trust' to extract the specific CA into the expected path
+        sudo trust extract --format=pem --filter "USERTrust RSA Certification Authority" "$CA_DST" 2>/dev/null || true
+        if [ -f "$CA_DST" ]; then
+            echo "Certificat extrait vers $CA_DST"
+        else
+            echo "Échec de l'extraction du certificat avec 'trust'. Vérifiez que le CA existe dans le magasin système." 
         fi
+    fi
 
     # Trouver le fichier de connexion (peut avoir un nom encodé)
     CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*.nmconnection" 2>/dev/null | head -1)
