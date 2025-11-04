@@ -67,12 +67,14 @@ function configurer_vpn() {
     echo ""
     echo "Configuration du certificat CA..."
 
-    CA_NAME="USERTrust_RSA_Certification_Authority.pem"
-    CA_DST="/etc/ssl/certs/${CA_NAME}"
+    echo ""
+    echo "Vérification du choix de certificat (seulement OpenSUSE)"
 
-    # OpenSUSE specific: extract the USERTrust RSA CA directly from the bundle into a PEM file
-    # (le choix du certificat doit être fait uniquement pour OpenSUSE)
+    # OpenSUSE specific: all certificate handling happens only inside this block
     if [ "$distro" -eq 4 ]; then
+        CA_NAME="USERTrust_RSA_Certification_Authority.pem"
+        CA_DST="/etc/ssl/certs/${CA_NAME}"
+
         echo "Distribution: OpenSUSE — vérification du certificat CA sur le système..."
         if [ -f "$CA_DST" ]; then
             echo "Le certificat existe déjà en $CA_DST — extraction ignorée."
@@ -104,24 +106,26 @@ function configurer_vpn() {
 
     if [ -f "$CONN_FILE" ]; then
         echo "Fichier de configuration trouvé : $CONN_FILE"
-        # Vérifier si le certificat n'est pas déjà présent
-        if ! sudo grep -q "^certificate=" "$CONN_FILE"; then
-            if [ -f "$CA_DST" ]; then
-                # Ajouter la ligne certificate= dans la section [vpn]
-                sudo sed -i '/^\[vpn\]/a certificate='"$CA_DST" "$CONN_FILE"
-                sudo chmod 600 "$CONN_FILE"
-                sudo nmcli connection reload || true
-                # Redémarrer NetworkManager si la modification a été effectuée par la logique spécifique (ici OpenSUSE)
-                if [ "$distro" -eq 4 ]; then
+        # Le choix et l'ajout du certificat ne sont effectués que pour OpenSUSE
+        if [ "$distro" -eq 4 ]; then
+            # Vérifier si le certificat n'est pas déjà présent
+            if ! sudo grep -q "^certificate=" "$CONN_FILE"; then
+                if [ -f "$CA_DST" ]; then
+                    # Ajouter la ligne certificate= dans la section [vpn]
+                    sudo sed -i '/^\[vpn\]/a certificate='"$CA_DST" "$CONN_FILE"
+                    sudo chmod 600 "$CONN_FILE"
+                    sudo nmcli connection reload || true
+                    # Redémarrer NetworkManager pour appliquer la modification
                     sudo systemctl restart NetworkManager || true
+                    echo "Certificat CA ajouté avec succès : $CA_DST"
+                else
+                    echo "Impossible d'ajouter le certificat : $CA_DST introuvable." 
                 fi
-                echo "Certificat CA ajouté avec succès : $CA_DST"
             else
-                echo "Impossible d'ajouter le certificat : $CA_DST introuvable."
-                echo "Si vous êtes sur Fedora, placez ${CA_NAME} dans le répertoire courant ou vérifiez le magasin de certificats." 
+                echo "Le certificat est déjà configuré."
             fi
         else
-            echo "Le certificat est déjà configuré."
+            echo "Le choix du certificat est géré uniquement pour OpenSUSE. Aucun changement de certificat effectué pour cette distribution."
         fi
     else
         echo "ATTENTION : Fichier de configuration introuvable. Le certificat devra être ajouté manuellement."
