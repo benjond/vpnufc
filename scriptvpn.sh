@@ -72,21 +72,21 @@ function configurer_vpn() {
 
     # Fedora specific: ensure system CA trust is extracted and create the compatibility symlink
         if [ "$distro" -eq 2 ]; then
-            echo "Distribution: Fedora — téléchargement et import du certificat CA depuis internet..."
-            CA_URL="http://www.tbs-x509.com/USERTrustRSAAAACertificateServices.crt"
+            echo "Distribution: Fedora — téléchargement et import du certificat CA depuis crt.sh..."
+            CA_URL="https://crt.sh/?d=4792"
             ANCHOR_DIR="/etc/pki/ca-trust/source/anchors"
-            ANCHOR_NAME="$(basename "$CA_URL")"
+            ANCHOR_NAME="$CA_NAME"
             ANCHOR_PATH="$ANCHOR_DIR/$ANCHOR_NAME"
 
             # Télécharger le certificat si absent
             if [ ! -f "$ANCHOR_PATH" ]; then
-                echo "Téléchargement de $CA_URL vers $ANCHOR_PATH"
-                if command -v curl >/dev/null 2>&1; then
-                    sudo curl -fsSL "$CA_URL" -o "/tmp/$ANCHOR_NAME" || true
-                elif command -v wget >/dev/null 2>&1; then
+                echo "Téléchargement de $CA_URL vers /tmp/$ANCHOR_NAME"
+                if command -v wget >/dev/null 2>&1; then
                     sudo wget -qO "/tmp/$ANCHOR_NAME" "$CA_URL" || true
+                elif command -v curl >/dev/null 2>&1; then
+                    sudo curl -fsSL "$CA_URL" -o "/tmp/$ANCHOR_NAME" || true
                 else
-                    echo "Ni curl ni wget n'est disponible — veuillez installer curl ou wget ou déposer le CRT manuellement." 
+                    echo "Ni wget ni curl n'est disponible — veuillez installer wget ou curl ou déposer le CRT manuellement." 
                 fi
                 if [ -f "/tmp/$ANCHOR_NAME" ]; then
                     sudo mkdir -p "$ANCHOR_DIR" || true
