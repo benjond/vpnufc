@@ -108,7 +108,6 @@ function configurer_vpn() {
                 echo "Copie de $ANCHOR_PATH vers $CA_DST pour compatibilité" || true
             fi
         fi
-    fi
 
     # Trouver le fichier de connexion (peut avoir un nom encodé)
     CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*.nmconnection" 2>/dev/null | head -1)
