@@ -66,29 +66,62 @@ function configurer_vpn() {
     # Ajouter le certificat CA en éditant directement le fichier de configuration NetworkManager
     echo ""
     echo "Configuration du certificat CA..."
-    
+
+    CA_NAME="USERTrust_RSA_Certification_Authority.pem"
+    CA_DST="/etc/ssl/certs/${CA_NAME}"
+
+    # Fedora specific: ensure system CA trust is extracted and create the compatibility symlink
+    if [ "$distro" -eq 2 ]; then
+        echo "Distribution: Fedora — mise à jour du magasin de certificats système et création d'un lien symbolique si nécessaire..."
+        # Extract the system CA trust (idempotent)
+        sudo update-ca-trust extract 2>/dev/null || true
+
+        # If the extracted bundle exists, create or update the symlink expected by the script
+        BUNDLE="/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+        if [ -f "$BUNDLE" ]; then
+            # Create or update the symlink at /etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem
+            if [ -e "$CA_DST" ] || [ -L "$CA_DST" ]; then
+                sudo rm -f "$CA_DST" || true
+            fi
+            sudo ln -s "$BUNDLE" "$CA_DST" || true
+            sudo chmod 644 "$BUNDLE" || true
+            echo "Lien symbolique créé : $CA_DST -> $BUNDLE"
+        else
+            echo "Attention: $BUNDLE introuvable après update-ca-trust. Vérifiez manuellement le magasin de certificats." 
+        fi
+    fi
+
     # Trouver le fichier de connexion (peut avoir un nom encodé)
     CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*.nmconnection" 2>/dev/null | head -1)
-    
+
     if [ -z "$CONN_FILE" ]; then
         # Essayer sans extension .nmconnection
         CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*" 2>/dev/null | head -1)
     fi
-    
+
     if [ -z "$CONN_FILE" ]; then
         # Essayer avec le nom exact entre guillemets
         CONN_FILE="/etc/NetworkManager/system-connections/VPN UFC.nmconnection"
     fi
-    
+
     if [ -f "$CONN_FILE" ]; then
         echo "Fichier de configuration trouvé : $CONN_FILE"
         # Vérifier si le certificat n'est pas déjà présent
-        if ! sudo grep -q "certificate=" "$CONN_FILE"; then
-            # Ajouter la ligne certificate= dans la section [vpn]
-            sudo sed -i '/^\[vpn\]/a certificate=/etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem' "$CONN_FILE"
-            sudo chmod 600 "$CONN_FILE"
-            sudo nmcli connection reload
-            echo "Certificat CA ajouté avec succès !"
+        if ! sudo grep -q "^certificate=" "$CONN_FILE"; then
+            if [ -f "$CA_DST" ]; then
+                # Ajouter la ligne certificate= dans la section [vpn]
+                sudo sed -i '/^\[vpn\]/a certificate='"$CA_DST" "$CONN_FILE"
+                sudo chmod 600 "$CONN_FILE"
+                sudo nmcli connection reload || true
+                # Sur Fedora on restart NetworkManager to be safe
+                if [ "$distro" -eq 2 ]; then
+                    sudo systemctl restart NetworkManager || true
+                fi
+                echo "Certificat CA ajouté avec succès : $CA_DST"
+            else
+                echo "Impossible d'ajouter le certificat : $CA_DST introuvable."
+                echo "Si vous êtes sur Fedora, placez ${CA_NAME} dans le répertoire courant ou vérifiez le magasin de certificats." 
+            fi
         else
             echo "Le certificat est déjà configuré."
         fi
