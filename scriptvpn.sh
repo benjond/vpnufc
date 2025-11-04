@@ -77,7 +77,7 @@ function configurer_vpn() {
         sudo update-ca-trust extract 2>/dev/null || true
 
         # If the extracted bundle exists, create or update the symlink expected by the script
-        BUNDLE="/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+        BUNDLE="/etc/pki/tls/certs/ca-bundle.crt"
         if [ -f "$BUNDLE" ]; then
             # Create or update the symlink at /etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem
             if [ -e "$CA_DST" ] || [ -L "$CA_DST" ]; then
