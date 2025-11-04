@@ -20,13 +20,15 @@ function installer_paquets() {
             ;;
         2)
             sudo dnf install -y strongswan NetworkManager-strongswan NetworkManager-strongswan-gnome
+            autoriser_selinux
             ;;
         3)
             sudo pacman -S --needed --noconfirm strongswan networkmanager-strongswan
-            autoriser_selinux
+            
             ;;
         4)
             sudo zypper install -y strongswan NetworkManager-strongswan NetworkManager-strongswan-gnome
+            autoriser_selinux
             ;;
         5)
             creer_fichiers_dns
@@ -52,7 +54,7 @@ function configurer_vpn() {
     connection.id "VPN UFC" \
     connection.autoconnect no \
     vpn.data \
-    "address=vpn20-2.univ-fcomte.fr, ca=/etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem, encap=yes, esp=aes256-sha1, ike=aes256-sha1-modp1024, ipcomp=no, method=eap, proposal=no, user=$username@ufc, virtual=yes, service-type=org.freedesktop.NetworkManager.strongswan" \
+    "address=vpn20-2.univ-fcomte.fr, encap=yes, esp=aes256-sha1, ike=aes256-sha1-modp1024, ipcomp=no, method=eap, proposal=no, user=$username@ufc, virtual=yes, service-type=org.freedesktop.NetworkManager.strongswan" \
     vpn.secrets \
     "password=$password" \
     ipv4.method auto \
@@ -60,6 +62,40 @@ function configurer_vpn() {
     ipv6.addr-gen-mode stable-privacy
     
     sudo nmcli connection modify "VPN UFC" ipv4.never-default no
+    
+    # Ajouter le certificat CA en éditant directement le fichier de configuration NetworkManager
+    echo ""
+    echo "Configuration du certificat CA..."
+    
+    # Trouver le fichier de connexion (peut avoir un nom encodé)
+    CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*.nmconnection" 2>/dev/null | head -1)
+    
+    if [ -z "$CONN_FILE" ]; then
+        # Essayer sans extension .nmconnection
+        CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*" 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$CONN_FILE" ]; then
+        # Essayer avec le nom exact entre guillemets
+        CONN_FILE="/etc/NetworkManager/system-connections/VPN UFC.nmconnection"
+    fi
+    
+    if [ -f "$CONN_FILE" ]; then
+        echo "Fichier de configuration trouvé : $CONN_FILE"
+        # Vérifier si le certificat n'est pas déjà présent
+        if ! sudo grep -q "certificate=" "$CONN_FILE"; then
+            # Ajouter la ligne certificate= dans la section [vpn]
+            sudo sed -i '/^\[vpn\]/a certificate=/etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem' "$CONN_FILE"
+            sudo chmod 600 "$CONN_FILE"
+            sudo nmcli connection reload
+            echo "Certificat CA ajouté avec succès !"
+        else
+            echo "Le certificat est déjà configuré."
+        fi
+    else
+        echo "ATTENTION : Fichier de configuration introuvable. Le certificat devra être ajouté manuellement."
+        echo "Recherchez le fichier avec : sudo ls -la /etc/NetworkManager/system-connections/"
+    fi
 
 
 }
@@ -118,12 +154,20 @@ function creer_fichiers_dns() {
 
 function autoriser_selinux() {
     # Detect SELinux and try to apply safe, conservative authorisations for strongSwan
-    if ! command -v getenforce >/dev/null 2>&1; then
+    # Some distributions (e.g. OpenSUSE) ship getenforce in /usr/sbin and it may require sudo.
+    GETENFORCE_CMD=""
+    if command -v getenforce >/dev/null 2>&1; then
+        GETENFORCE_CMD="getenforce"
+    elif [ -x /usr/sbin/getenforce ]; then
+        GETENFORCE_CMD="sudo /usr/sbin/getenforce"
+    elif [ -x /sbin/getenforce ]; then
+        GETENFORCE_CMD="sudo /sbin/getenforce"
+    else
         echo "SELinux non détecté (pas de getenforce). Aucune action SELinux effectuée."
         return
     fi
 
-    selinux_status="$(getenforce 2>/dev/null || echo Disabled)"
+    selinux_status="$($GETENFORCE_CMD 2>/dev/null || echo Disabled)"
     if [ "$selinux_status" != "Enforcing" ]; then
         echo "SELinux status: $selinux_status — aucune action nécessaire."
         return
