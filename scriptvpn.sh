@@ -92,10 +92,6 @@ function configurer_vpn() {
             fi
         fi
     fi
-
-    # Trouver le fichier de connexion (peut avoir un nom encodé)
-    CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*.nmconnection" 2>/dev/null | head -1)
-
     if [ -z "$CONN_FILE" ]; then
         # Essayer sans extension .nmconnection
         CONN_FILE=$(sudo find /etc/NetworkManager/system-connections/ -type f -name "*VPN*UFC*" 2>/dev/null | head -1)
