@@ -16,19 +16,21 @@ function installer_paquets() {
     case $distro in
         1)
             sudo apt update -y
-            sudo apt install -y network-manager-strongswan libstrongswan-extra-plugins libcharon-extra-plugins
+            sudo apt install -y network-manager-strongswan libstrongswan-extra-plugins libcharon-extra-plugins 
             ;;
         2)
-            sudo dnf install -y strongswan NetworkManager-strongswan
+            sudo dnf install -y strongswan NetworkManager-strongswan NetworkManager-strongswan-gnome
             ;;
         3)
             sudo pacman -S --needed --noconfirm strongswan networkmanager-strongswan
+            autoriser_selinux
             ;;
         4)
-            sudo zypper install -y strongswan NetworkManager-strongswan
+            sudo zypper install -y strongswan NetworkManager-strongswan NetworkManager-strongswan-gnome
             ;;
         5)
             creer_fichiers_dns
+            autoriser_selinux
             ;;
         *)
             echo "Erreur: distribution inconnue"
@@ -50,7 +52,7 @@ function configurer_vpn() {
     connection.id "VPN UFC" \
     connection.autoconnect no \
     vpn.data \
-    "address=vpn20-2.univ-fcomte.fr, encap=yes, esp=aes256-sha1, ike=aes256-sha1-modp1024, ipcomp=no, method=eap, proposal=no, user=$username@ufc, virtual=yes, service-type=org.freedesktop.NetworkManager.strongswan" \
+    "address=vpn20-2.univ-fcomte.fr, ca=/etc/ssl/certs/USERTrust_RSA_Certification_Authority.pem, encap=yes, esp=aes256-sha1, ike=aes256-sha1-modp1024, ipcomp=no, method=eap, proposal=no, user=$username@ufc, virtual=yes, service-type=org.freedesktop.NetworkManager.strongswan" \
     vpn.secrets \
     "password=$password" \
     ipv4.method auto \
@@ -112,6 +114,58 @@ function creer_fichiers_dns() {
 
     
   
+}
+
+function autoriser_selinux() {
+    # Detect SELinux and try to apply safe, conservative authorisations for strongSwan
+    if ! command -v getenforce >/dev/null 2>&1; then
+        echo "SELinux non détecté (pas de getenforce). Aucune action SELinux effectuée."
+        return
+    fi
+
+    selinux_status="$(getenforce 2>/dev/null || echo Disabled)"
+    if [ "$selinux_status" != "Enforcing" ]; then
+        echo "SELinux status: $selinux_status — aucune action nécessaire."
+        return
+    fi
+
+    read -p "SELinux est en mode Enforcing. Voulez-vous que le script tente d'autoriser strongSwan maintenant ? [y/N] " answer
+    case "$answer" in
+        [yY]) ;;
+        *) echo "Changements SELinux ignorés par l'utilisateur."; return ;;
+    esac
+
+    echo "Installation des outils SELinux nécessaires (si absents)..."
+    if [ $distro -eq 2 ]; then
+        sudo dnf install -y policycoreutils-python-utils checkpolicy setools-console || true
+    elif [ $distro -eq 4 ]; then
+        sudo zypper install -y policycoreutils-python-utils checkpolicy setools-console || true
+    fi
+
+    # Try to find and install any shipped strongSwan SELinux policy module
+    echo "Recherche d'un module SELinux fourni pour strongSwan..."
+    found_module=0
+    for f in /usr/share/selinux/*/*strongswan*.pp /usr/share/selinux/*/strongswan.pp /usr/share/selinux/strongswan/*.pp; do
+        if [ -f "$f" ]; then
+            echo "Module trouvé : $f — installation..."
+            sudo semodule -i "$f" && found_module=1 && break || true
+        fi
+    done
+
+    if [ "$found_module" -eq 1 ]; then
+        echo "Module SELinux strongSwan installé (si compatible)."
+        return
+    fi
+
+    echo "Aucun module SELinux explicite trouvé. Tentative d'ajout de domaines permissifs courants (peut échouer sans effet si le domaine n'existe pas)."
+    # Semanage permissive is a pragmatic fallback; it may fail harmlessly if domain names differ.
+    for domain in charon_t ipsec_t strongswan_t; do
+        if command -v semanage >/dev/null 2>&1; then
+            sudo semanage permissive -a "$domain" 2>/dev/null || true
+        fi
+    done
+
+    echo "Opérations SELinux terminées."
 }
 
 main() {
